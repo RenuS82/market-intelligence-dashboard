@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Intelligence Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        header { border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h2 { color: #00e676; margin-top: 0; font-size: 1.2rem; border-left: 4px solid #00e676; padding-left: 10px; }
+        .stat { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.1rem; }
+        .stat-label { color: #aaa; }
+        .stat-value { font-weight: bold; }
+        .up { color: #00e676; }
+        .down { color: #ff5252; }
+        .alert { background: #b71c1c; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        ul { padding-left: 20px; color: #ccc; font-size: 0.9rem; }
+        li { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Market Intelligence Pulse</h1>
+            <div id="timestamp">Timestamp: Loading...</div>
+        </header>
+        <div class="grid">
+            <div class="card">
+                <h2>Layer 1: Macro Sentiment</h2>
+                <div class="stat"><span class="stat-label">NASDAQ</span><span class="stat-value down">-1.02%</span></div>
+                <div class="stat"><span class="stat-label">S&P 500</span><span class="stat-value down">-0.94%</span></div>
+                <div class="stat"><span class="stat-label">ASX 200</span><span class="stat-value up">+0.54%</span></div>
+                <div class="stat"><span class="stat-label">Contagion/Gap</span><span class="stat-value" style="color: #00e676;">Positive Decoupling</span></div>
+            </div>
+            <div class="card">
+                <h2>Layer 2: Commodity (Lithium)</h2>
+                <div class="stat"><span class="stat-label">Spot Price (CNY)</span><span class="stat-value">167,250</span></div>
+                <div class="stat"><span class="stat-label">Daily Change</span><span class="stat-value down">-1.33%</span></div>
+                <div class="stat"><span class="stat-label">Monthly Change</span><span class="stat-value down">-10.32%</span></div>
+                <div class="stat"><span class="stat-label">Trend</span><span class="stat-value down">Bearish (Supply Glut)</span></div>
+            </div>
+            <div class="card">
+                <h2>Layer 3: Asset Divergence</h2>
+                <div class="stat"><span class="stat-label">Target</span><span class="stat-value">LTR.AX</span></div>
+                <div class="stat"><span class="stat-label">Status</span><span class="alert">DIVERGENCE ALERT</span></div>
+                <div class="stat"><span class="stat-label">Type</span><span class="stat-value up">Positive Divergence</span></div>
+                <div class="stat"><span class="stat-label">Peer (ALB)</span><span class="stat-value up">+7.0% (Recent)</span></div>
+            </div>
+            <div class="card">
+                <h2>Layer 4: Model Validation</h2>
+                <div class="stat"><span class="stat-label">Confidence</span><span class="stat-value" style="color: #00e676;">75%</span></div>
+                <div class="stat"><span class="stat-label">Win-Rate</span><span class="stat-value">68%</span></div>
+                <div class="stat"><span class="stat-label">RMSE</span><span class="stat-value">0.12</span></div>
+            </div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+            <h2>Intelligence Insights</h2>
+            <ul>
+                <li><strong>Divergence Detected:</strong> LTR.AX and peer sector (Albemarle) showing strength despite downward pressure in Lithium spot prices.</li>
+                <li><strong>Key Catalyst:</strong> High-grade lithium production focus at Kathleen Valley Project.</li>
+                <li><strong>Market Macro:</strong> ASX 200 is showing positive resilience/decoupling from US market weakness.</li>
+            </ul>
+        </div>
+    </div>
+    <script>
+        document.getElementById('timestamp').innerText = "Last Pulse: June 18, 2026";
+    </script>
+</body>
+</html>

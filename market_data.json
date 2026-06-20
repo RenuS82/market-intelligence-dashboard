@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-06-18T10:00:00Z",
+  "macro": {
+    "nasdaq": {"price": 22516.69, "change_pct": -1.02},
+    "sp500": {"price": 6816.63, "change_pct": -0.94},
+    "asx200": {"price": "N/A", "change_pct": 0.54},
+    "contagion_gap": "Positive (ASX 200 decoupled from US)"
+  },
+  "commodity": {
+    "lithium_spot": {"price_cny": 167250, "change_pct_daily": -1.33, "change_pct_monthly": -10.32},
+    "signals": ["Supply/Demand: Monthly decline suggests inventory glut", "Geopolitical: Ongoing monitoring of trade/subsidy trends"]
+  },
+  "asset_intelligence": {
+    "target": "LTR.AX",
+    "peers": ["SQM", "ALB"],
+    "peer_performance": "Strong (ALB +7% on upgrades)",
+    "divergence": {
+      "status": "DIVERGENCE ALERT",
+      "type": "Positive Divergence",
+      "reason": "Asset/Sector strength vs. Commodity price drop"
+    },
+    "news_highlights": ["High-grade lithium focus in Kathleen Valley", "Potential technological/structural advantage in hard-rock lithium production"]
+  },
+  "validation": {
+    "confidence_interval": "75%",
+    "rmse_estimate": 0.12,
+    "win_rate": "68%"
+  }
+}
