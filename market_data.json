@@ -2973,7 +2973,8 @@
       "confidence": 75,
       "win_rate": 68,
       "rmse": 0.12
-    }
+    },
+    "ath": 5.25
   },
   "commodity_intelligence": {
     "lithium": {
