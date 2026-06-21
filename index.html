@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device://device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Market Intelligence Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
@@ -21,7 +21,7 @@
         }
         body {
             background-color: var(--bg);
-            color: var(--text);
+            color: var.(--text);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px;
@@ -134,7 +134,7 @@
 <body>
 
     <div class="header">
-        <h1>Market Intelligence</h1>
+        <h1 style="color: var(--accent); margin: 0;">Market Intelligence</h1>
         <div class="pulse-info" id="pulse-info">
             <div id="last-updated-time">Loading pulse...</div>
             <div id="market-context">Syncing...</div>
@@ -157,7 +157,7 @@
                 <h2 id="target-name">Target: Loading...</h2>
                 <div id="target-price" class="stat-value">--</div>
             </div>
-            <div class="controls" id="time-controls">
+            <div class            controls" id="time-controls">
                 <button class="btn-time" data-period="12m">12M</button>
                 <button class="btn-time" data-period="6m">6M</button>
                 <button class="btn-time" data-period="3m">3M</button>
@@ -166,7 +166,7 @@
                 <button class="btn-time" data-period="3d">3D</button>
                 <button class="btn-time active" data-period="24h">24H</button>
             </div>
-            <p class="instructions">Click two points on the line to run a custom backtest</p>
+            <p class="instructions">Click two points to backtest a trade. View confidence bands below.</p>
             <div id="chart-container">
                 <canvas id="priceChart"></canvas>
             </div>
@@ -182,7 +182,7 @@
     <script>
         let marketData = {};
         let priceChart = null;
-        let selectedPoints = []; // Stores {x, y, index}
+        let selectedPoints = [];
 
         async function init() {
             try {
@@ -249,12 +249,28 @@
                     maintainAspectRatio: false,
                     onClick: (evt, elements) => handleChartClick(evt, elements),
                     scales: {
-                        x: { type: 'time', time: { unit: 'day' }, grid: { display: false }, ticks: { color: '#a0a0a0' } },
-                        y: { position: 'right', min: 0, grid: { color: '#333' }, ticks: { color: '#a0a0a0' } }
+                        x: { 
+                            type: 'time', 
+                            time: { unit: 'day' }, 
+                            grid: { 
+                                display: true,
+                                color: 'rgba(0, 229, 255, 0.1)',
+                                borderDash: [5, 5]
+                            }, 
+                            ticks: { color: '#a0a0a0' } 
+                        },
+                        y: { 
+                            position: 'right', 
+                            grid: { color: '#333' }, 
+                            ticks: { color: '#a0a0a0' } 
+                        }
                     },
                     plugins: {
                         legend: { display: true, labels: { color: '#a0a0a0', boxWidth: 12 } },
-                        tooltip: { mode: 'index', intersect: false }
+                        tooltip: { mode: 'index', intersect: false },
+                        annotation: {
+                            annotations: {}
+                        }
                     },
                     interaction: { mode: 'index', intersect: false }
                 }
@@ -264,57 +280,37 @@
 
         function handleChartClick(evt, elements) {
             if (!elements.length) return;
-
             const element = elements[0];
             const datasetIndex = element.datasetIndex;
-            const index = element.index;
-
-            // We only want to click the main price line (dataset 0)
             if (datasetIndex !== 0) return;
 
-            const dataPoint = priceChart.data.datasets[0].data[index];
-            const price = priceChart.data.datasets[0].data[index]; // In Chart.js, it's usually in the object
-            
-            // Correctly getting price from the dataset
-            const actualPrice = priceChart.data.datasets[0].data[index].y || priceChart.data.datasets[0].data[index];
+            const dataPoint = priceChart.data.datasets[0].data[element.index];
+            const val = typeof dataPoint === 'object' ? dataPoint.y : dataPoint;
 
             if (selectedPoints.length < 2) {
-                // First click: Select Entry
                 selectedPoints.push({
-                    x: priceChart.data.labels[index],
-                    y: actualPrice,
-                    index: index
+                    x: priceChart.data.labels[element.index],
+                    y: val,
+                    index: element.index
                 });
             } else {
-                // Second click: Select Exit
-                selectedPoints.push({
-                    x: priceChart.data.labels[index],
-                    y: actualPrice,
-                    index: index
-                });
-            }
-
-            if (selectedPoints.length > 2) {
                 selectedPoints.shift();
+                selectedPoints.push({
+                    x: priceChart.data.labels[element.index],
+                    y: val,
+                    index: element.index
+                });
             }
 
             renderSelectionHighlights();
-            
-            if (selectedPoints.length === 2) {
-                calculateBacktest();
-            } else {
-                document.getElementById('backtest-panel').style.display = 'none';
-            }
+            if (selectedPoints.length === 2) calculateBacktest();
+            else document.getElementById('backtest-panel').style.display = 'none';
         }
 
         function renderSelectionHighlights() {
-            // Reset annotations
             priceChart.options.plugins.annotation.annotations = {};
-
             selectedPoints.forEach((pt, i) => {
                 const color = i === 0 ? '#00e5ff' : '#ff5252';
-                const label = i === 0 ? 'Entry' : 'Exit';
-
                 priceChart.options.plugins.annotation.annotations[`point${i}`] = {
                     type: 'point',
                     xValue: pt.x,
@@ -325,7 +321,7 @@
                     borderColor: '#fff',
                     label: {
                         display: true,
-                        content: label,
+                        content: i === 0 ? 'Entry' : 'Exit',
                         position: 'top',
                         backgroundColor: color,
                         color: '#000',
@@ -341,7 +337,6 @@
             const startPrice = p1.y;
             const endPrice = p2.y;
             const pctChange = ((endPrice - startPrice) / startPrice * 100).toFixed(2);
-            
             const panel = document.getElementById('backtest-panel');
             panel.style.display = 'block';
             panel.innerHTML = `
@@ -357,7 +352,6 @@
         }
 
         function updateChart(period) {
-            // Reset selection on period change
             selectedPoints = [];
             document.getElementById('backtest-panel').style.display = 'none';
             
@@ -376,8 +370,13 @@
             const prices = filteredData.map(d => d.p);
             const labels = filteredData.map(d => d.t);
 
-            const maxPrice = Math.max(...prices);
-            const yMax = maxPrice * 1.5;
+            // Adaptive Y-Axis Scaling
+            const pMin = Math.min(...prices);
+            const pMax = Math.max(...prices);
+            const range = pMax - pMin;
+            const padding = range / 3;
+            const yMin = pMin - padding;
+            const yMax = pMax + padding;
 
             const trendUp = prices[prices.length - 1] >= prices[0];
             const trendColor = trendUp ? '#00e676' : '#ff5252';
@@ -386,6 +385,7 @@
             const rollingAvg = [];
             const rolling10 = [];
             const rolling90 = [];
+            const intersections = [];
 
             for (let i = 0; i < prices.length; i++) {
                 const start = Math.max(0, i - windowSize);
@@ -395,6 +395,15 @@
                 rollingAvg.push(window.reduce((a, b) => a + b, 0) / window.length);
                 rolling10.push(sorted[Math.floor(sorted.length * 0.1)]);
                 rolling90.push(sorted[Math.floor(sorted.length * 0.9)]);
+
+                if (i > 0) {
+                    const currP = prices[i];
+                    const prevP = prices[i-1];
+                    if ((prevP <= rolling10[i] && currP >= rolling10[i]) || (prevP >= rolling10[i] && currP <= rolling10[i]) ||
+                        (prevP <= rolling90[i] && currP >= rolling90[i]) || (prevP >= rolling90[i] && currP <= rolling90[i])) {
+                        intersections.push({ x: labels[i], y: currP });
+                    }
+                }
             }
 
             priceChart.data.labels = labels;
@@ -435,15 +444,25 @@
                     fill: false
                 },
                 {
-                    label: 'Predictive Model',
+                    label: 'Predictive',
                     data: prices.map(p => p * (1 + (Math.random() * 0.04 - 0.02))),
                     borderColor: '#ff00ff',
                     borderWidth: 1,
                     borderDash: [2, 2],
                     pointRadius: 0,
                     fill: false
+                },
+                {
+                    label: 'Intersections',
+                    data: intersections,
+                    borderColor: '#ffffff',
+                    backgroundColor: '#ffffff',
+                    pointRadius: 4,
+                    showLine: false,
+                    type: 'scatter'
                 }
             ];
+            priceChart.options.scales.y.min = yMin;
             priceChart.options.scales.y.max = yMax;
             priceChart.update();
         }
