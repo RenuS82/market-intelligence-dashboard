@@ -57,6 +57,7 @@
             padding: 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             border: 1px solid var(--border);
+            position: relative;
         }
         h1, h2, h3 { margin-top: 0; margin-bottom: 15px; }
         .stat-row {
@@ -94,21 +95,21 @@
             position: relative;
             width: 100%;
             height: 400px;
-            margin-top: 10px;
         }
-        /* Tooltip/Info Overlay positioned in the least useful space (top-right of chart area) */
-        #chart-overlay {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(30, 30, 30, 0.8);
-            padding: 8px 12px;
-            border-radius: 6px;
+        
+        /* Integrated Summary Bar instead of floating tooltip */
+        #trade-summary {
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border);
-            pointer-events: none; /* User can click through to chart */
-            font-size: 0.8rem;
-            z-index: 10;
-            display: none;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            display: none; /* Hidden until trade is selected */
+            text-align: center;
+        }
+        #trade-summary.visible {
+            display: block;
         }
 
         .insight-list {
@@ -128,21 +129,12 @@
             left: 0;
         }
 
-        .backtest-result {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 6px;
-            background: rgba(0, 229, 255, 0.05);
-            border: 1px dashed var(--accent);
-            font-size: 0.9rem;
-            text-align: center;
-        }
         .instructions {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-dim);
             text-align: center;
-            margin-top: -10px;
             margin-bottom: 10px;
+            font-style: italic;
         }
     </style>
 </head>
@@ -172,6 +164,7 @@
                 <h2 id="target-name" style="margin: 0;">Target: Loading...</h2>
                 <div id="target-price" class="stat-value">--</div>
             </div>
+            
             <div class="controls" id="time-controls">
                 <button class="btn-time" data-period="12m">12M</button>
                 <button class="btn-time" data-period="6m">6M</button>
@@ -181,12 +174,14 @@
                 <button class="btn-time" data-period="3d">3D</button>
                 <button class="btn-time active" data-period="24h">24H</button>
             </div>
+            
             <p class="instructions">Click two points on the line to simulate a trade.</p>
+            
             <div id="chart-container">
                 <canvas id="priceChart"></canvas>
-                <div id="chart-overlay"></div>
             </div>
-            <div id="backtest-panel" class="backtest-result" style="display:none"></div>
+
+            <div id="trade-summary"></div>
         </div>
 
         <div class="card">
@@ -283,7 +278,9 @@
                     },
                     plugins: {
                         legend: { display: true, labels: { color: '#a0a0a0', boxWidth: 12 } },
-                        tooltip: { mode: 'index', intersect: false },
+                        tooltip: { 
+                            enabled: false // Disabled tooltip to avoid the "floating window" issue
+                        },
                         annotation: {
                             annotations: {}
                         }
@@ -313,14 +310,12 @@
 
             renderSelectionHighlights();
             if (selectedPoints.length === 2) {
-                // Enforce logic: buy MUST be before sell
-                if (selectedPoints[0].x > selectedPoints[1].x) {
-                    // Swap them so index 0 is the earlier timestamp
+                if (new Date(selectedPoints[0].x) > new Date(selectedPoints[1].x)) {
                     [selectedPoints[0], selectedPoints[1]] = [selectedPoints[1], selectedPoints[0]];
                 }
                 calculateBacktest();
             } else {
-                document.getElementById('backtest-panel').style.display = 'none';
+                document.getElementById('trade-summary').classList.remove('visible');
             }
         }
 
@@ -328,7 +323,6 @@
             priceChart.options.plugins.annotation.annotations = {};
             selectedPoints.forEach((pt, i) => {
                 const color = i === 0 ? '#00e5ff' : '#ff5252';
-                const label = i === 0 ? 'Entry' : 'Exit';
                 priceChart.options.plugins.annotation.annotations[`point${i}`] = {
                     type: 'point',
                     xValue: pt.x,
@@ -339,7 +333,7 @@
                     borderColor: '#fff',
                     label: {
                         display: true,
-                        content: label,
+                        content: i === 0 ? 'Entry' : 'Exit',
                         position: 'top',
                         backgroundColor: color,
                         color: '#000',
@@ -354,26 +348,28 @@
             const [p1, p2] = selectedPoints;
             const startPrice = p1.y;
             const endPrice = p2.y;
-            const pctChange = ((endPrice - startPrice) / startPrice * 100).toFixed(2);
-            const isProfit = pctChange >= 0;
+            const pctChange = ((endPrice - startPrice) / startPrice * 100);
+            const amount = Math.abs(endPrice - startPrice);
             
-            const panel = document.getElementById('backtest-panel');
-            panel.style.display = 'block';
-            panel.className = `backtest-result ${isProfit ? 'up' : 'down'}`;
-            panel.innerHTML = `
-                <strong>${isProfit ? '✅ Profit' : '❌ Loss'}</strong> 
-                Bought at <span class="stat-value">$${startPrice.toFixed(2)}</span>, 
-                Sold at <span class="stat-value">$${endPrice.toFixed(2)}</span> 
-                <br>
-                <span style="font-size: 1.2rem; font-weight: bold;">
-                    ${isProfit ? '+' : ''}${pctChange}%
-                </span>
+            const isProfit = pctChange >= 0;
+            const date1 = new Date(p1.x).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+            const date2 = new Date(p2.x).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+            
+            const summary = document.getElementById('trade-summary');
+            summary.classList.add('visible');
+            summary.style.borderColor = isProfit ? 'var(--success)' : 'var(--danger)';
+            summary.style.color = isProfit ? 'var(--success)' : 'var(--danger)';
+            summary.innerHTML = `
+                <strong>${isProfit ? '✅ Profit' : '❌ Loss'}</strong>: 
+                Bought at <strong>$${startPrice.toFixed(2)}</strong> on ${date1}, 
+                sold at <strong>$${endPrice.toFixed(2)}</strong> on ${date2}; 
+                Profit made <strong>$${amount.toFixed(2)}</strong> and <strong>${Math.abs(pctChange).toFixed(2)}%</strong>
             `;
         }
 
         function updateChart(period) {
             selectedPoints = [];
-            document.getElementById('backtest-panel').style.display = 'none';
+            document.getElementById('trade-summary').classList.remove('visible');
             
             const history = marketData.asset_intelligence.historical_data.target;
             let filteredData = [...history];
@@ -395,7 +391,6 @@
             const range = pMax - pMin;
             const padding = range / 3;
             
-            // Adaptive Y-Axis Scaling logic
             const yMin = pMin - padding;
             const yMax = pMax + padding;
 
