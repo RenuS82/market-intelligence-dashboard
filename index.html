@@ -97,7 +97,6 @@
             height: 400px;
         }
         
-        /* Integrated Summary Bar instead of floating tooltip */
         #trade-summary {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border);
@@ -194,6 +193,7 @@
         let marketData = {};
         let priceChart = null;
         let selectedPoints = [];
+        let intersectionPoints = []; // Store exact points for click detection
 
         async function init() {
             try {
@@ -278,9 +278,7 @@
                     },
                     plugins: {
                         legend: { display: true, labels: { color: '#a0a0a0', boxWidth: 12 } },
-                        tooltip: { 
-                            enabled: false // Disabled tooltip to avoid the "floating window" issue
-                        },
+                        tooltip: { enabled: false },
                         annotation: {
                             annotations: {}
                         }
@@ -292,12 +290,28 @@
         }
 
         function handleChartClick(evt, elements) {
-            if (!elements.length) return;
-            const element = elements[0];
-            const datasetIndex = element.datasetIndex;
-            if (datasetIndex !== 0) return;
+            // 1. Check if user clicked near an intersection dot first
+            // This solves the "days don't match" issue when clicking visual markers
+            for (const point of intersectionPoints) {
+                const dx = evt.x - (priceChart.canvas.getBoundingClientRect().left + point.canvasX);
+                const dy = evt.y - (priceChart.canvas.getBoundingClientRect().top + point.canvasY);
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 20) { // 20px radius for "hitting" a dot
+                    performSelection(point.index);
+                    return;
+                }
+            }
 
-            const index = element.index;
+            // 2. If no dot was hit, fallback to standard nearest-point search
+            if (elements.length > 0) {
+                const element = elements[0];
+                if (element.datasetIndex === 0) {
+                    performSelection(element.index);
+                }
+            }
+        }
+
+        function performSelection(index) {
             const label = priceChart.data.labels[index];
             const val = priceChart.data.datasets[0].data[index].y || priceChart.data.datasets[0].data[index];
 
@@ -309,7 +323,9 @@
             }
 
             renderSelectionHighlights();
+            
             if (selectedPoints.length === 2) {
+                // Enforce time order: Buy must be earlier than Sell
                 if (new Date(selectedPoints[0].x) > new Date(selectedPoints[1].x)) {
                     [selectedPoints[0], selectedPoints[1]] = [selectedPoints[1], selectedPoints[0]];
                 }
@@ -323,6 +339,7 @@
             priceChart.options.plugins.annotation.annotations = {};
             selectedPoints.forEach((pt, i) => {
                 const color = i === 0 ? '#00e5ff' : '#ff5252';
+                const label = i === 0 ? 'Entry' : 'Exit';
                 priceChart.options.plugins.annotation.annotations[`point${i}`] = {
                     type: 'point',
                     xValue: pt.x,
@@ -333,7 +350,7 @@
                     borderColor: '#fff',
                     label: {
                         display: true,
-                        content: i === 0 ? 'Entry' : 'Exit',
+                        content: label,
                         position: 'top',
                         backgroundColor: color,
                         color: '#000',
@@ -369,6 +386,7 @@
 
         function updateChart(period) {
             selectedPoints = [];
+            intersectionPoints = []; // Reset intersections for new timeframe
             document.getElementById('trade-summary').classList.remove('visible');
             
             const history = marketData.asset_intelligence.historical_data.target;
@@ -401,6 +419,8 @@
             const rollingAvg = [];
             const rolling10 = [];
             const rolling90 = [];
+
+            // We'll use a separate loop to identify intersections to populate intersectionPoints
             const intersections = [];
 
             for (let i = 0; i < prices.length; i++) {
@@ -415,9 +435,13 @@
                 if (i > 0) {
                     const currP = prices[i];
                     const prevP = prices[i-1];
+                    // Intersection detection logic
                     if ((prevP <= rolling10[i] && currP >= rolling10[i]) || (prevP >= rolling10[i] && currP <= rolling10[i]) ||
                         (prevP <= rolling90[i] && currP >= rolling90[i]) || (prevP >= rolling90[i] && currP <= rolling90[i])) {
-                        intersections.push({ x: labels[i], y: currP });
+                        
+                        // Store for click detection: need canvas-relative coords
+                        // We'll do this in a second pass after chart is rendered
+                        intersections.push({ x: labels[i], y: currP, index: i });
                     }
                 }
             }
@@ -470,7 +494,7 @@
                 },
                 {
                     label: 'Intersections',
-                    data: intersections,
+                    data: intersections.map(int => ({ x: int.x, y: int.y })),
                     borderColor: '#ffffff',
                     backgroundColor: '#ffffff',
                     pointRadius: 4,
@@ -481,6 +505,23 @@
             priceChart.options.scales.y.min = yMin;
             priceChart.options.scales.y.max = yMax;
             priceChart.update();
+
+            // After update, calculate canvas-relative coordinates for the intersection dots
+            // so the handleChartClick can detect them.
+            setTimeout(() => {
+                intersectionPoints = [];
+                intersections.forEach(int => {
+                    // Use Chart.js built-in coordinate conversion to get canvas-relative pos
+                    const coords = priceChart.getDatasetMeta(5).data[intersections.indexOf(int)];
+                    if (coords) {
+                        intersectionPoints.push({
+                            index: int.index,
+                            canvasX: coords.x,
+                            canvasY: coords.y
+                        });
+                    }
+                });
+            }, 50);
         }
 
         document.getElementById('time-controls').addEventListener('click', (e) => {
