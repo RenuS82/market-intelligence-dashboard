@@ -11,7 +11,7 @@
     "signals": ["Supply/Demand: Monthly decline suggests inventory glut", "Geopolitical: Ongoing monitoring of trade/subsidy trends"]
   },
   "asset_intelligence": {
-    "target": "LTR.AX",
+    "target": "LTR.ASX",
     "peers": ["SQM", "ALB"],
     "peer_performance": "Strong (ALB +7% on upgrades)",
     "divergence": {
