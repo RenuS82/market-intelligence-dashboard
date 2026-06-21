@@ -21,7 +21,7 @@
         }
         body {
             background-color: var(--bg);
-            color: var.(--text);
+            color: var(--text);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px;
@@ -91,10 +91,24 @@
         .btn-time.active { background: var(--accent); color: black; font-weight: bold; }
 
         #chart-container {
+            position: relative;
             width: 100%;
             height: 400px;
             margin-top: 10px;
-            cursor: crosshair;
+        }
+        /* Tooltip/Info Overlay positioned in the least useful space (top-right of chart area) */
+        #chart-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(30, 30, 30, 0.8);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            pointer-events: none; /* User can click through to chart */
+            font-size: 0.8rem;
+            z-index: 10;
+            display: none;
         }
 
         .insight-list {
@@ -121,6 +135,7 @@
             background: rgba(0, 229, 255, 0.05);
             border: 1px dashed var(--accent);
             font-size: 0.9rem;
+            text-align: center;
         }
         .instructions {
             font-size: 0.8rem;
@@ -143,21 +158,21 @@
 
     <div class="container">
         <div class="card">
-            <h2>Layer 1: Macro Sentiment</h2>
+            <h2 style="font-size: 1.2rem;">Macro Sentiment</h2>
             <div id="macro-content"></div>
         </div>
 
         <div class="card">
-            <h2>Layer 2: Commodity (Lithium)</h2>
+            <h2 style="font-size: 1.2rem;">Commodity (Lithium)</h2>
             <div id="commodity-content"></div>
         </div>
 
         <div class="card" style="grid-column: span 2;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 id="target-name">Target: Loading...</h2>
+                <h2 id="target-name" style="margin: 0;">Target: Loading...</h2>
                 <div id="target-price" class="stat-value">--</div>
             </div>
-            <div class            controls" id="time-controls">
+            <div class="controls" id="time-controls">
                 <button class="btn-time" data-period="12m">12M</button>
                 <button class="btn-time" data-period="6m">6M</button>
                 <button class="btn-time" data-period="3m">3M</button>
@@ -166,15 +181,16 @@
                 <button class="btn-time" data-period="3d">3D</button>
                 <button class="btn-time active" data-period="24h">24H</button>
             </div>
-            <p class="instructions">Click two points to backtest a trade. View confidence bands below.</p>
+            <p class="instructions">Click two points on the line to simulate a trade.</p>
             <div id="chart-container">
                 <canvas id="priceChart"></canvas>
+                <div id="chart-overlay"></div>
             </div>
             <div id="backtest-panel" class="backtest-result" style="display:none"></div>
         </div>
 
         <div class="card">
-            <h2>Intelligence Insights</h2>
+            <h2 style="font-size: 1.2rem;">Intelligence Insights</h2>
             <ul class="insight-list" id="insight-list"></ul>
         </div>
     </div>
@@ -254,7 +270,7 @@
                             time: { unit: 'day' }, 
                             grid: { 
                                 display: true,
-                                color: 'rgba(0, 229, 255, 0.1)',
+                                color: 'rgba(0, 229, 255, 0.05)',
                                 borderDash: [5, 5]
                             }, 
                             ticks: { color: '#a0a0a0' } 
@@ -284,33 +300,35 @@
             const datasetIndex = element.datasetIndex;
             if (datasetIndex !== 0) return;
 
-            const dataPoint = priceChart.data.datasets[0].data[element.index];
-            const val = typeof dataPoint === 'object' ? dataPoint.y : dataPoint;
+            const index = element.index;
+            const label = priceChart.data.labels[index];
+            const val = priceChart.data.datasets[0].data[index].y || priceChart.data.datasets[0].data[index];
 
             if (selectedPoints.length < 2) {
-                selectedPoints.push({
-                    x: priceChart.data.labels[element.index],
-                    y: val,
-                    index: element.index
-                });
+                selectedPoints.push({ x: label, y: val, index: index });
             } else {
                 selectedPoints.shift();
-                selectedPoints.push({
-                    x: priceChart.data.labels[element.index],
-                    y: val,
-                    index: element.index
-                });
+                selectedPoints.push({ x: label, y: val, index: index });
             }
 
             renderSelectionHighlights();
-            if (selectedPoints.length === 2) calculateBacktest();
-            else document.getElementById('backtest-panel').style.display = 'none';
+            if (selectedPoints.length === 2) {
+                // Enforce logic: buy MUST be before sell
+                if (selectedPoints[0].x > selectedPoints[1].x) {
+                    // Swap them so index 0 is the earlier timestamp
+                    [selectedPoints[0], selectedPoints[1]] = [selectedPoints[1], selectedPoints[0]];
+                }
+                calculateBacktest();
+            } else {
+                document.getElementById('backtest-panel').style.display = 'none';
+            }
         }
 
         function renderSelectionHighlights() {
             priceChart.options.plugins.annotation.annotations = {};
             selectedPoints.forEach((pt, i) => {
                 const color = i === 0 ? '#00e5ff' : '#ff5252';
+                const label = i === 0 ? 'Entry' : 'Exit';
                 priceChart.options.plugins.annotation.annotations[`point${i}`] = {
                     type: 'point',
                     xValue: pt.x,
@@ -321,7 +339,7 @@
                     borderColor: '#fff',
                     label: {
                         display: true,
-                        content: i === 0 ? 'Entry' : 'Exit',
+                        content: label,
                         position: 'top',
                         backgroundColor: color,
                         color: '#000',
@@ -337,16 +355,18 @@
             const startPrice = p1.y;
             const endPrice = p2.y;
             const pctChange = ((endPrice - startPrice) / startPrice * 100).toFixed(2);
+            const isProfit = pctChange >= 0;
+            
             const panel = document.getElementById('backtest-panel');
             panel.style.display = 'block';
+            panel.className = `backtest-result ${isProfit ? 'up' : 'down'}`;
             panel.innerHTML = `
-                <strong>Trade Result:</strong> 
-                ${pctChange >= 0 ? '📈' : '📉'} 
+                <strong>${isProfit ? '✅ Profit' : '❌ Loss'}</strong> 
                 Bought at <span class="stat-value">$${startPrice.toFixed(2)}</span>, 
                 Sold at <span class="stat-value">$${endPrice.toFixed(2)}</span> 
                 <br>
-                <span class="${pctChange >= 0 ? 'up' : 'down'}" style="font-size: 1.2rem; font-weight: bold;">
-                    Total Return: ${pctChange}%
+                <span style="font-size: 1.2rem; font-weight: bold;">
+                    ${isProfit ? '+' : ''}${pctChange}%
                 </span>
             `;
         }
@@ -370,11 +390,12 @@
             const prices = filteredData.map(d => d.p);
             const labels = filteredData.map(d => d.t);
 
-            // Adaptive Y-Axis Scaling
             const pMin = Math.min(...prices);
             const pMax = Math.max(...prices);
             const range = pMax - pMin;
             const padding = range / 3;
+            
+            // Adaptive Y-Axis Scaling logic
             const yMin = pMin - padding;
             const yMax = pMax + padding;
 
