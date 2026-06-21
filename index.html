@@ -2,72 +2,327 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device://device-width, initial-scale=1.0">
     <title>Market Intelligence Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: auto; }
-        header { border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        h2 { color: #00e676; margin-top: 0; font-size: 1.2rem; border-left: 4px solid #00e676; padding-left: 10px; }
-        .stat { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.1rem; }
-        .stat-label { color: #aaa; }
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #ffffff;
+            --text-dim: #a0a0a0;
+            --accent: #00e5ff;
+            --danger: #ff5252;
+            --success: #00e676;
+            --border: #333;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .pulse-info {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            text-align: right;
+        }
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid var(--border);
+        }
+        h1, h2, h3 { margin-top: 0; margin-bottom: 15px; }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        .stat-label { color: var(--text-dim); }
         .stat-value { font-weight: bold; }
-        .up { color: #00e676; }
-        .down { color: #ff5252; }
-        .alert { background: #b71c1c; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-        ul { padding-left: 20px; color: #ccc; font-size: 0.9rem; }
-        li { margin-bottom: 5px; }
+        .up { color: var(--success); }
+        .down { color: var(--danger); }
+        
+        /* Chart Controls */
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-time {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .btn-time:hover { background: #444; }
+        .btn-time.active { background: var(--accent); color: black; font-weight: bold; }
+
+        #chart-container {
+            width: 100%;
+            height: 350px;
+            margin-top: 10px;
+        }
+
+        .insight-list {
+            list-style: none;
+            padding: 0;
+            font-size: 0.9rem;
+        }
+        .insight-list li {
+            margin-bottom: 12px;
+            padding-left: 20px;
+            position: relative;
+        }
+        .insight-list li::before {
+            content: '•';
+            color: var(--accent);
+            position: absolute;
+            left: 0;
+        }
     </style>
 </head>
 <body>
+
+    <div classs="header">
+        <h1>Market Intelligence</h1>
+        <div class="pulse-info" id="pulse-info">
+            <div id="last-updated-time">Loading pulse...</div>
+            <div id="market-context">Syncing...</div>
+        </div>
+    </div>
+
     <div class="container">
-        <header>
-            <h1>Market Intelligence Pulse</h1>
-            <div id="timestamp">Timestamp: Loading...</div>
-        </header>
-        <div class="grid">
-            <div class="card">
-                <h2>Layer 1: Macro Sentiment</h2>
-                <div class="stat"><span class="stat-label">NASDAQ</span><span class="stat-value down">-1.02%</span></div>
-                <div class="stat"><span class="stat-label">S&P 500</span><span class="stat-value down">-0.94%</span></div>
-                <div class="stat"><span class="stat-label">ASX 200</span><span class="stat-value up">+0.54%</span></div>
-                <div class="stat"><span class="stat-label">Contagion/Gap</span><span class="stat-value" style="color: #00e676;">Positive Decoupling</span></div>
+        <!-- Layer 1: Macro -->
+        <div class="card">
+            <h2>Layer 1: Macro Sentiment</h2>
+            <div id="macro-content"></div>
+        </div>
+
+        <!-- Layer 2: Commodity -->
+        <div class="card">
+            <h2>Layer 2: Commodity (Lithium)</h2>
+            <div id="commodity-content"></div>
+        </div>
+
+        <!-- Layer 3: Target Asset & Chart -->
+        <div class="card" style="grid-column: span 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="target-name">Target: Loading...</h2>
+                <div id="target-price" class="stat-value">--</div>
             </div>
-            <div class="card">
-                <h2>Layer 2: Commodity (Lithium)</h2>
-                <div class="stat"><span class="stat-label">Spot Price (CNY)</span><span class="stat-value">167,250</span></div>
-                <div class="stat"><span class="stat-label">Daily Change</span><span class="stat-value down">-1.33%</span></div>
-                <div class="stat"><span class="stat-label">Monthly Change</span><span class="stat-value down">-10.32%</span></div>
-                <div class="stat"><span class="stat-label">Trend</span><span class="stat-value down">Bearish (Supply Glut)</span></div>
+            <div class="controls" id="time-controls">
+                <button class="btn-time" data-period="12m">12M</button>
+                <button class="btn-time" data-period="6m">6M</button>
+                <button class="btn-time" data-period="3m">3M</button>
+                <button class="btn-time" data-period="1m">1M</button>
+                <button class="btn-time" data-period="7d">7D</button>
+                <button class="btn-time" data-period="3d">3D</button>
+                <button class="btn-time active" data-period="24h">24H</button>
             </div>
-            <div class="card">
-                <h2>Layer 3: Asset Divergence</h2>
-                <div class="stat"><span class="stat-label">Target</span><span class="stat-value">LTR.ASX</span></div>
-                <div class="stat"><span class="stat-label">Status</span><span class="alert">DIVERGENCE ALERT</span></div>
-                <div class="stat"><span class="stat-label">Type</span><span class="stat-value up">Positive Divergence</span></div>
-                <div class="stat"><span class="stat-label">Peer (ALB)</span><span class="stat-value up">+7.0% (Recent)</span></div>
-            </div>
-            <div class="card">
-                <h2>Layer 4: Model Validation</h2>
-                <div class="stat"><span class="stat-label">Confidence</span><span class="stat-value" style="color: #00e676;">75%</span></div>
-                <div class="stat"><span class="stat-label">Win-Rate</span><span class="stat-value">68%</span></div>
-                <div class="stat"><span class="stat-label">RMSE</span><span class="stat-value">0.12</span></div>
+            <div id="chart-container">
+                <canvas id="priceChart"></canvas>
             </div>
         </div>
-        <div class="card" style="margin-top: 20px;">
+
+        <!-- Insights -->
+        <div class="card">
             <h2>Intelligence Insights</h2>
-            <ul>
-                <li><strong>Divergence Detected:</strong> LTR.ASX and peer sector (Albemarle) showing strength despite downward pressure in Lithium spot prices.</li>
-                <li><strong>Key Catalyst:</strong> High-grade lithium production focus at Kathleen Valley Project.</li>
-                <li><strong>Market Macro:</strong> ASX 200 is showing positive resilience/decoupling from US market weakness.</li>
+            <ul class="insight-list" id="insight-list">
+                <li>Calculating divergence patterns...</li>
             </ul>
         </div>
     </div>
+
     <script>
-        document.getElementById('timestamp').innerText = "Last Pulse: June 18, 2026";
+        let marketData = {};
+        let priceChart = null;
+
+        async function init() {
+            try {
+                const res = await fetch('market_data.json');
+                marketData = await res.json();
+                renderPulseInfo();
+                renderMacro();
+                renderCommodity();
+                renderTargetInfo();
+                initChart();
+            } catch (err) {
+                console.error("Failed to load data:", err);
+            }
+        }
+
+        function renderPulseInfo() {
+            const meta = marketData.metadata;
+            document.getElementById('last-updated-time').textContent = `Last Pulse: ${meta.last_pulse.timestamp || meta.last_pulse.utc}`;
+            document.getElementById('market-context').textContent = `ASX: ${meta.markets.ASX.location} (${meta.markets.ASX.timezone})`;
+        }
+
+        function renderMacro() {
+            const macro = marketData.market_intelligence.macro_sentiment;
+            let html = '';
+            for (const [key, val] of Object.entries(macro)) {
+                html += `
+                    <div class="stat-row">
+                        <span class="stat-label">${key.toUpperCase()}</span>
+                        <span class="stat-value">${val}</span>
+                    </div>`;
+            }
+            document.getElementById('macro-content').innerHTML = html;
+        }
+
+        function renderCommodity() {
+            const lithium = marketData.commodity_intelligence.lithium;
+            document.getElementById('commodity-content').innerHTML = `
+                <div class="stat-row"><span class="stat-label">Spot (CNY)</span><span class="stat-value">${lithium.spot_price_cny}</span></div>
+                <div class="stat-row"><span class="stat-label">Daily Change</span><span class="stat-value ${lithium.daily_change_pct >= 0 ? 'up' : 'down'}">${lithium.daily_change_pct}%</span></div>
+                <div class="stat-row"><span class="stat-label">Trend</span><span class="stat-value">${lithium.trend}</span></div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:10px 0;">
+                <ul style="font-size:0.8rem; color:var(--text-dim); padding-left:20px;">
+                    ${lithium.signals.map(s => `<li>${s}</li>`).join('')}
+                </ul>
+            `;
+        }
+
+        function renderTargetInfo() {
+            const asset = marketData.asset_intelligence;
+            document.getElementById('target-name').textContent = `Target: ${asset.target}`;
+            document.getElementById('target-price').textContent = `$${asset.current_metrics.price}`;
+            document.getElementById('target-price').className = `stat-value ${asset.current_metrics.change_24h.startsWith('+') ? 'up' : 'down'}`;
+            
+            const insights = document.getElementById('insight-list');
+            insights.innerHTML = `
+                <li><strong>Divergence:</strong> ${asset.divergence.description}</li>
+                <li><strong>Status:</strong> <span class="${asset.current_metrics.status.includes('ALERT') ? 'down' : 'up'}">${asset.current_metrics.status}</span></li>
+            `;
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day' }, grid: { display: false }, ticks: { color: '#a0a0a0' } },
+                        y: { position: 'right', grid: { color: '#333' }, ticks: { color: '#a0a0a0' } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    interaction: { intersect: false, mode: 'index' }
+                }
+            });
+            updateChart('24h');
+        }
+
+        function updateChart(period) {
+            const history = marketData.asset_intelligence.historical_data.target;
+            let filteredData = [...history];
+            
+            // Logic to filter based on period
+            const now = new Date();
+            if (period === '7d') filteredData = history.filter(d => new Date(d.t) > new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
+            else if (period === '3d') filteredData = history.filter(d => new Date(d.t) > new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000));
+            else if (period === '24h') filteredData = history.filter(d => new Date(d.t) > new Date(now.getTime() - 24 * 60 * 60 * 1000));
+            else if (period === '1m') filteredData = history.filter(d => new Date(d.t) > new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
+            else if (period === '3m') filteredData = history.filter(d => new Date(d.t) > new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000));
+            else if (period === '6m') filteredData = history.filter(d => new Date(d.t) > new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000));
+            else if (period === '12m') filteredData = history;
+
+            const prices = filteredData.map(d => d.p);
+            const labels = filteredData.map(d => d.t);
+
+            // Calculations
+            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const median = prices.sort((a, b) => a - b)[Math.floor(prices.length / 2)];
+            
+            // Percentiles (Simple implementation)
+            const sortedPrices = [...prices].sort((a, b) => a - b);
+            const p90 = sortedPrices[Math.floor(sortedPrices.length * 0.9)];
+            const p10 = sortedPrices[Math.floor(sortedPrices.length * 0.1)];
+
+            priceChart.data.labels = labels;
+            priceChart.data.datasets = [
+                {
+                    label: 'Price',
+                    data: prices,
+                    borderColor: '#00e5ff',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                },
+                {
+                    label: 'Average',
+                    data: Array(prices.length).fill(avg),
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false
+                },
+                {
+                    label: '90% High',
+                    data: Array(prices.length).fill(p90),
+                    borderColor: 'rgba(0, 230, 255, 0.1)',
+                    backgroundColor: 'rgba(0, 230, 255, 0.05)',
+                    pointRadius: 0,
+                    fill: '+1' // Fills to next dataset
+                },
+                {
+                    label: '10% Low',
+                    data: Array(prices.length).fill(p10),
+                    borderColor: 'rgba(0, 230, 255, 0.1)',
+                    backgroundColor: 'rgba(0, 230, 255, 0.05)',
+                    pointRadius: 0,
+                    fill: false
+                }
+            ];
+            priceChart.update();
+        }
+
+        document.getElementById('time-controls').addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-time')) {
+                document.querySelectorAll('.btn-time').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                updateChart(e.target.dataset.period);
+            }
+        });
+
+        init();
     </script>
 </body>
 </html>
